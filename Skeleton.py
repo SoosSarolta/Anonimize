@@ -1,4 +1,5 @@
 import hashlib
+import random
 from collections import defaultdict
 from difflib import SequenceMatcher
 
@@ -25,6 +26,8 @@ def characters_to_send(dic, mylist, sending):   # server telling how many charac
     temp = 0
     flag = 0
 
+    rand = random.randint(0, 63)                # random number between 0-63
+
     for values in dic.values():                 # only works fine if we send data that already exists in server-database
         for valuePart in values:
             mylist.append(valuePart)
@@ -34,10 +37,17 @@ def characters_to_send(dic, mylist, sending):   # server telling how many charac
         flag += 1
         for list_j in range(temp, len(mylist) - 1):
             if mylist[list_i] != mylist[list_j + 1]:
-                for char in range(1, 65):
-                    if mylist[list_i][0:char] not in mylist[list_j + 1]:
-                        sending.append(char)
-                        break
+                char = 1
+                while char < 65:
+                    if char + rand <= 63:
+                        if mylist[list_i][rand:char+rand] not in mylist[list_j + 1]:
+                            sending.append(char)
+                            break
+                        char += 1
+                    else:
+                        rand -= 1
+                        char = 1
+    return rand
 
 
 def frequency(dic, hash_max):                       # counting the frequency of longest-matching data
@@ -117,11 +127,11 @@ def longest_match(dic, hexa_dig, min_chars, sizes, max_variable, mylist):
 
 
 def laplace_noise(freq):                            # adding Laplace-noise to frequency
-    random = numpy.random.laplace(0, 5, None)       # default (0, 1, None) TODO optimális zaj?
-    if freq + round(random) <= 0:
+    random_l = numpy.random.laplace(0, 5, None)     # default (0, 1, None) TODO optimális zaj?
+    if freq + round(random_l) <= 0:
         return freq
     else:
-        return freq + round(random)
+        return freq + round(random_l)
 
 
 if __name__ == '__main__':
@@ -153,9 +163,9 @@ if __name__ == '__main__':
         print("\n-------------------------------------------")
         print("Client input hash-prefix:")
 
-        characters_to_send(d, temp_list, charsToSend)
+        my_rand = characters_to_send(d, temp_list, charsToSend)
         minChars = max(charsToSend)                 # choose characters to send
-        print(hex_dig[0:minChars])                  # prefix of input - first n characters
+        print(hex_dig[my_rand:minChars+my_rand])    # random part of input - n characters
 
         # print("\nLongest sub-string matches in server data:")
         max_hash = longest_match(d, hex_dig, minChars, matchSizes, max_var, temp_list)
