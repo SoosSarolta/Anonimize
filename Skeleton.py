@@ -2,6 +2,8 @@ import hashlib
 from collections import defaultdict
 from difflib import SequenceMatcher
 
+import numpy
+
 
 def longest_substring(str1, str2):                  # algorithm for finding longest common substring
     seq_match = SequenceMatcher(None, str1, str2)
@@ -45,8 +47,10 @@ def frequency(dic, hash_max):                       # counting the frequency of 
             if valuePart == hash_max:
                 freq_max += 1
     print("\nFrequency of longest-matching element:")
-    print(freq_max)
-    return freq_max
+
+    diff_freq_max = laplace_noise(freq_max)
+    print(diff_freq_max)
+    return diff_freq_max
 
 
 def category(dic, hash_max, hexa_dig):              # finding the category of longest-matching data
@@ -109,7 +113,15 @@ def longest_match(dic, hexa_dig, min_chars, sizes, max_variable, mylist):
     # print(max_variable)
     print(hash_max)
 
-    return hash_max                             # TODO innen a 80-as sorra ugrik?!
+    return hash_max                                 # TODO innen a 80-as sorra ugrik?!
+
+
+def laplace_noise(freq):                            # adding Laplace-noise to frequency
+    random = numpy.random.laplace(0, 5, None)       # default (0, 1, None) TODO optimális zaj?
+    if freq + round(random) <= 0:
+        return freq
+    else:
+        return freq + round(random)
 
 
 if __name__ == '__main__':
