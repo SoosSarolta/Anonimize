@@ -1,19 +1,18 @@
 import hashlib
-import random
 from collections import defaultdict
 from difflib import SequenceMatcher
 
 # import numpy
 
 
-# client input hashing algorithm
+# client hashes its input
 def hashing(str1):
     line_byte = str1.encode()                        # str --> byte
     hash_obj = hashlib.sha256(line_byte)
     return hash_obj.hexdigest()
 
 
-# finding longest common substring
+# algorithm for finding longest common substring
 def longest_substring(str1, str2):
     seq_match = SequenceMatcher(None, str1, str2)
     match = seq_match.find_longest_match(0, len(str1), 0, len(str2))
@@ -23,59 +22,66 @@ def longest_substring(str1, str2):
 
 
 # searching longest sub-string matches between client data and server data
-def longest_match(dic, hexa_dig, min_chars, sizes, max_variable, mylist):
-    list_of_temp = []
-    hash_max = ""
+def longest_match(server_table, client_hash, chars_to_be_sent, longest_substring_sizes,
+                  longest_matching_hash_size, my_temp_list):
+    help_list = []
+    longest_matching_hash = ""
 
-    for values in dic.values():                     # iterating through server data
+    # iterating through server-side database, searching for longest common substring
+    # how many characters long is the match / finding longest common substrings between client input and all server row
+    for values in server_table.values():
         for valuePart in values:
-            temporary = longest_substring(hexa_dig[0:min_chars], valuePart)  # finding longest common substring
-            sizes.append(temporary.size)            # match - how many characters long
-            list_of_temp.append(temporary)          # longest common substrings between client input and all server row
+            temporary = longest_substring(client_hash[0:chars_to_be_sent], valuePart)
+            longest_substring_sizes.append(temporary.size)
+            help_list.append(temporary)
 
-    for values in dic.values():                     # how many characters to send to get unambiguous answer
-        for _ in values:                            # in case of data not seen before
-            for ii in range(len(mylist) - 1):
-                for jj in range(len(mylist) - 1):
-                    if mylist[ii] != mylist[jj + 1] and sizes[ii] == sizes[jj + 1]:
-                        if max(sizes) == sizes[ii]:
-                            sizes.clear()
+    # server telling the client how many characters to send to get unambiguous answer (in case of data not seen before)
+    for values in server_table.values():
+        for _ in values:
+            for ii in range(len(my_temp_list) - 1):
+                for jj in range(len(my_temp_list) - 1):
+                    if my_temp_list[ii] != my_temp_list[jj + 1] and longest_substring_sizes[ii] == \
+                            longest_substring_sizes[jj + 1]:
+                        if max(longest_substring_sizes) == longest_substring_sizes[ii]:
+                            longest_substring_sizes.clear()
                             print("\nTrying again with one more characters...")
-                            longest_match(dic, hexa_dig, min_chars+1, sizes, max_variable, mylist)
+                            longest_match(server_table, client_hash, chars_to_be_sent + 1, longest_substring_sizes,
+                                          longest_matching_hash_size, my_temp_list)
 
     i = 0
-    for values in dic.values():
+    for values in server_table.values():
         for valuePart in values:
-            temporary = list_of_temp[i]
+            temporary = help_list[i]
             i += 1
 
-            if temporary.size > max_variable:       # longest match size
-                max_variable = temporary.size
-                hash_max = valuePart                # which server-element has the longest match size
+            # what is the longest match size and which server element has it
+            if temporary.size > longest_matching_hash_size:
+                longest_matching_hash_size = temporary.size
+                longest_matching_hash = valuePart
 
     print("\nLongest-matching element:")
-    print(hash_max)
+    print(longest_matching_hash)
 
-    return hash_max
+    return longest_matching_hash
 
 
-# server telling how many characters to send to get unambiguous answer in case of data seen before
-def characters_to_send(dic, mylist, sending):
+# server telling the client how many characters to send to get unambiguous answer (in case of data seen before)
+def characters_to_send(server_table, my_temp_list, chars_to_be_sent):
     temp = 0
     flag = 0
 
-    for values in dic.values():
+    for values in server_table.values():
         for valuePart in values:
-            mylist.append(valuePart)
-    for list_i in range(len(mylist) - 1):
+            my_temp_list.append(valuePart)
+    for list_i in range(len(my_temp_list) - 1):
         if flag > 0:
             temp += 1
         flag += 1
-        for list_j in range(temp, len(mylist) - 1):
-            if mylist[list_i] != mylist[list_j + 1]:
+        for list_j in range(temp, len(my_temp_list) - 1):
+            if my_temp_list[list_i] != my_temp_list[list_j + 1]:
                 for char in range(1, 65):
-                    if mylist[list_i][0:char] not in mylist[list_j + 1]:
-                        sending.append(char)
+                    if my_temp_list[list_i][0:char] not in my_temp_list[list_j + 1]:
+                        chars_to_be_sent.append(char)
                         break
 
 
@@ -89,46 +95,51 @@ def characters_to_send(dic, mylist, sending):
 
 
 # counting the frequency of longest-matching data
-def frequency(dic, hash_max):
-    freq_max = 0
-    for values in dic.values():
+def frequency(server_table, longest_matching_hash):
+    longest_match_frequency = 0
+    for values in server_table.values():
         for valuePart in values:
-            if valuePart == hash_max:
-                freq_max += 1
+            if valuePart == longest_matching_hash:
+                longest_match_frequency += 1
 
-#    diff_freq_max = laplace_noise(freq_max)
+#    diff_freq_max = laplace_noise(longest_match_frequency)
 
-    return freq_max
+    return longest_match_frequency
 
 
 # finding the category of longest-matching data
-def category(dic, hash_max, hexa_dig):
-    cat = 0
+def category(server_table, longest_matching_hash, client_hash):
+    longest_match_category = 0
 
-    for keys, values in dic.items():
-        if values[0] == hash_max:
+    for keys, values in server_table.items():
+        if values[0] == longest_matching_hash:
             print("\nCategory of longest-matching element:")
             print(keys)
-            cat = keys
+            longest_match_category = keys
 
-            if hash_max == hexa_dig:                # if client side data matches server side data totally
+            # if client side data matches server side data totally
+            if longest_matching_hash == client_hash:
                 print("\nComplete match! - data already exists")
                 print("Adding client input to server side...")
-                dic[keys].append(hexa_dig)
+                server_table[keys].append(client_hash)
                 print("New server database elements:")
-                print(list(dic.items()))
-            else:                                   # if client side data doesn't match server side data totally
+                print(list(server_table.items()))
+
+            # if client side data doesn't match server side data totally
+            else:
                 print("\nNot a complete match!")
                 print("Adding client input to server side...")
-                dic[keys].append(hexa_dig)
+                server_table[keys].append(client_hash)
                 print("New server database elements:")
-                print(list(dic.items()))
+                print(list(server_table.items()))
 
-    return cat
+    return longest_match_category
 
 
 if __name__ == '__main__':
 
+    # categorical attributes table on the server
+    # [Category, Data]
     server_data = [
         (1, "142f41284e5517e5e1e867854da66652d35da004dfe92cf5d1d93310ed32d98a"),    # Bp.
         (1, "142f41284e5517e5e1e867854da66652d35da004dfe92cf5d1d93310ed32d98a"),
@@ -138,28 +149,36 @@ if __name__ == '__main__':
         (3, "7165c665e78d8aadbd53dd0607e9a5302f6c7ecb5f54071dd93a5f634b92571e")     # Szom.
     ]
 
-    d = defaultdict(list)
+    server_data_as_dictionary = defaultdict(list)
     for k, v in server_data:
-        d[k].append(v)                              # result: [(1, [Bp, Bp, Bp]), (2, [Vp, Vp]), (3, [Sz])]
-    list(d.items())
+        server_data_as_dictionary[k].append(v)  # result: [(1, [Bp, Bp, Bp]), (2, [Vp, Vp]), (3, [Sz])]
+    list(server_data_as_dictionary.items())
 
-    file = open("client_input.txt", "r")
-    data = file.readlines()                         # client input in file
+    # client input from file (hierarchical attributes)
+    file_hierarchical = open("client_hierarchical_input.txt", "r")
+    residence = file_hierarchical.readline().strip()
 
-    for line in data:
-        charsToSend = []
-        matchSizes = []
-        temp_list = []
-        max_var = 0
+    longest_substring_search_match_sizes = []
+    final_longest_match_size = 0
+    chars_to_send = []
+    temp_list = []
 
-        hex_dig = hashing(line)                     # hashing input
-        print("\n-------------------------------------------")
-        print("Client input hash-prefix:")
+    # hashing client input
+    hashed_client_input = hashing(residence)
+    print("\n-------------------------------------------")
+    print("Client input hash-prefix:")
 
-        characters_to_send(d, temp_list, charsToSend)
-        minChars = max(charsToSend)                 # choose characters to send
-        print(hex_dig[0:minChars])                  # prefix of input - first n characters
+    # choosing characters to send (prefix - first n characters)
+    characters_to_send(server_data_as_dictionary, temp_list, chars_to_send)
+    number_of_chars_to_send = max(chars_to_send)
+    print(hashed_client_input[0:number_of_chars_to_send])
 
-        max_hash = longest_match(d, hex_dig, minChars, matchSizes, max_var, temp_list)  # longest matching data
-        max_freq = frequency(d, max_hash)           # longest-matching data frequency
-        max_cat = category(d, max_hash, hex_dig)    # longest-matching data category
+    # longest matching data, its frequency and category
+    hash_of_longest_match = longest_match(server_data_as_dictionary, hashed_client_input, number_of_chars_to_send,
+                                          longest_substring_search_match_sizes, final_longest_match_size, temp_list)
+    frequency_of_longest_match = frequency(server_data_as_dictionary, hash_of_longest_match)
+    category_of_longest_match = category(server_data_as_dictionary, hash_of_longest_match, hashed_client_input)
+
+    # adding now categorical data to other categorical attributes
+    file_categorical = open("client_categorical_input.txt", "a")
+    file_categorical.write(";" + str(category_of_longest_match))
